@@ -1,12 +1,12 @@
-// import Button from "./Button";
-// import Cards from "./Cards";
+import Card from "./Card";
 import './DrawCards.css'
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
+const deckOfCardsAPI = "https://deckofcardsapi.com/api/deck";
 function DrawCards() {
     const [deckId, setDeckId] = useState('');
-    const deckOfCardsAPI = "https://deckofcardsapi.com/api/deck";
-    const cardArea = useRef();
+    const [drawn, setDrawn] = useState([]);
+    const [isShuffling, setIsShuffling] = useState(false);
     useEffect(() => {
         async function newDeck() {
             const res = await axios.get(`${deckOfCardsAPI}/new/shuffle`);
@@ -16,28 +16,37 @@ function DrawCards() {
         newDeck();
     }, [])
     const handleClick = async () => {
-        const res = await axios.get(`${deckOfCardsAPI}/${deckId}/draw`);
-        console.log('card-->', res.data);
-        let angle = Math.random() * 90 - 45;
-        let randomX = Math.random() * 40 - 20;
-        let randomY = Math.random() * 40 - 20;
-        if (res.data.cards.length > 0) {
-            cardArea.current.innerHTML += '<img width="200" height="300" style="transform:translate(' + randomX + 'px, ' + randomY + 'px) rotate(' + angle + 'deg)" src= ' + res.data.cards[0].image + '>';
-        } else {
-            alert('Error: no cards remaining!');
+        try {
+            const res = await axios.get(`${deckOfCardsAPI}/${deckId}/draw`);
+            console.log('card-->', res.data);
+            if (res.data.remaining === 0) throw new Error("Deck empty!");
+            const card = res.data.cards[0];
+            setDrawn(d => [
+                ...d, { id: card.code, image: card.image }
+            ]);
+        } catch (err) {
+            alert(err);
         }
     }
 
     const shuffleDeck = async () => {
-        const res = await axios.get(`${deckOfCardsAPI}/${deckId}/shuffle`);
-        cardArea.current.innerHTML = '';
-        console.log('card-->', res.data);
+        setIsShuffling(true);
+        try {
+            const res = await axios.get(`${deckOfCardsAPI}/${deckId}/shuffle`);
+            //cardArea.current.innerHTML = '';
+            setDrawn([]);
+            console.log('card-->', res.data);
+        } catch (err) {
+            alert(err);
+        } finally {
+            setIsShuffling(false);
+        }
     }
     return (
         <>
-            <button onClick={ handleClick }>GIMME A CARD!</button>
-            <button onClick={ shuffleDeck }>SHUFFLE THE DECK!</button>
-            <div id='card-area' ref={ cardArea }></div>
+            <button onClick={ handleClick } disabled={ isShuffling }>GIMME A CARD!</button>
+            <button onClick={ shuffleDeck } disabled={ isShuffling }>SHUFFLE THE DECK!</button>
+            <div id='card-area'>{ drawn.map(c => (<Card key={ c.id } image={ c.image } />)) }</div>
         </>
     )
 }
